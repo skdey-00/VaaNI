@@ -1,0 +1,78 @@
+# Gateway service docker-compose
+# This compose file starts the gateway service with its dependencies
+
+version: '3.8'
+
+services:
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vaani_gateway
+    ports:
+      - "8000:8000"
+    environment:
+      - VOICE_SERVICE_URL=http://voice_service:8001
+      - LLM_SERVICE_URL=http://llm_service:8002
+      - GATEWAY_HOST=0.0.0.0
+      - GATEWAY_PORT=8000
+      - ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
+      - LOG_LEVEL=INFO
+      - DEBUG_MODE=false
+      - ENABLE_LID=true
+      - AUTO_TRANSLATE=true
+      - AUTO_SUGGEST=true
+    networks:
+      - vaani_network
+    depends_on:
+      - voice_service
+      - llm_service
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  # Voice service (should be defined in root docker-compose)
+  voice_service:
+    image: vaani/voice-service:latest
+    container_name: vaani_voice_service
+    ports:
+      - "8001:8001"
+    networks:
+      - vaani_network
+    restart: unless-stopped
+
+  # LLM service (should be defined in root docker-compose)
+  llm_service:
+    image: vaani/llm-service:latest
+    container_name: vaani_llm_service
+    ports:
+      - "8002:8002"
+    networks:
+      - vaani_network
+    restart: unless-stopped
+
+  # Optional: Redis for session state (future enhancement)
+  redis:
+    image: redis:7-alpine
+    container_name: vaani_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - vaani_network
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+networks:
+  vaani_network:
+    driver: bridge
+    name: vaani_network
+
+volumes:
+  redis_data:
+    driver: local

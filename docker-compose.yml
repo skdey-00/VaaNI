@@ -1,0 +1,301 @@
+# Root docker-compose for VaaNI multi-service architecture
+# Starts all three services: gateway, voice_service, llm_service
+
+version: '3.8'
+
+services:
+  # ============================================================================
+  # Gateway Service
+  # ============================================================================
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: vaani_gateway
+    ports:
+      - "${GATEWAY_PORT:-8000}:8000"
+    environment:
+      # Service URLs
+      - VOICE_SERVICE_URL=http://voice_service:8001
+      - LLM_SERVICE_URL=http://llm_service:8002
+
+      # Gateway Config
+      - GATEWAY_HOST=0.0.0.0
+      - GATEWAY_PORT=8000
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - DEBUG_MODE=${DEBUG_MODE:-false}
+
+      # Feature Flags
+      - ENABLE_LID=${ENABLE_LID:-true}
+      - AUTO_TRANSLATE=${AUTO_TRANSLATE:-true}
+      - AUTO_SUGGEST=${AUTO_SUGGEST:-true}
+
+      # Language Settings
+      - DEFAULT_CUSTOMER_LANGUAGE=${DEFAULT_CUSTOMER_LANGUAGE:-en}
+      - STAFF_LANGUAGE=${STAFF_LANGUAGE:-en}
+
+      # Session Settings
+      - SESSION_TIMEOUT_MINUTES=${SESSION_TIMEOUT_MINUTES:-30}
+      - MAX_TRANSCRIPT_ENTRIES=${MAX_TRANSCRIPT_ENTRIES:-1000}
+
+      # Retry Settings
+      - MAX_RETRIES=${MAX_RETRIES:-3}
+      - RETRY_DELAY_MS=${RETRY_DELAY_MS:-100}
+
+      # WebSocket Settings
+      - WS_MAX_MESSAGE_SIZE=${WS_MAX_MESSAGE_SIZE:-16777216}
+      - WS_TIMEOUT=${WS_TIMEOUT:-30}
+    networks:
+      - vaani_network
+    depends_on:
+      voice_service:
+        condition: service_healthy
+      llm_service:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ============================================================================
+  # Voice Service
+  # ============================================================================
+  voice_service:
+    build:
+      context: ./voice_service
+      dockerfile: Dockerfile
+    container_name: vaani_voice_service
+    ports:
+      - "${VOICE_SERVICE_PORT:-8001}:8001"
+    environment:
+      # Service Config
+      - HOST=0.0.0.0
+      - PORT=8001
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+
+      # Model Paths
+      - ASR_MODEL_PATH=/models/asr
+      - LID_MODEL_PATH=/models/lid
+      - TRANSLATION_MODEL_PATH=/models/translation
+      - TTS_MODEL_PATH=/models/tts
+
+      # API Keys (if using cloud services)
+      - DEEPL_API_KEY=${DEEPL_API_KEY:-}
+      - GOOGLE_TRANSLATE_API_KEY=${GOOGLE_TRANSLATE_API_KEY:-}
+      - AZURE_SPEECH_KEY=${AZURE_SPEECH_KEY:-}
+      - AZURE_SPEECH_REGION=${AZURE_SPEECH_REGION:-}
+
+      # Feature Flags
+      - ENABLE_ASR=${ENABLE_ASR:-true}
+      - ENABLE_LID=${ENABLE_LID:-true}
+      - ENABLE_TRANSLATION=${ENABLE_TRANSLATION:-true}
+      - ENABLE_TTS=${ENABLE_TTS:-true}
+
+      # Model Settings
+      - DEFAULT_ASR_LANGUAGE=${DEFAULT_ASR_LANGUAGE:-en}
+      - DEFAULT_TTS_LANGUAGE=${DEFAULT_TTS_LANGUAGE:-en}
+
+      # Cache Settings
+      - ENABLE_CACHE=${ENABLE_CACHE:-true}
+      - CACHE_TTL=${CACHE_TTL:-3600}
+    volumes:
+      - voice_models:/models
+      - voice_cache:/app/cache
+    networks:
+      - vaani_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ============================================================================
+  # Ollama Service (for embeddings)
+  # ============================================================================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: vaani_ollama
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - vaani_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    # GPU support (uncomment if using NVIDIA GPU)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # ============================================================================
+  # LLM Service
+  # ============================================================================
+  llm_service:
+    build:
+      context: ./llm_service
+      dockerfile: Dockerfile
+    container_name: vaani_llm_service
+    ports:
+      - "${LLM_SERVICE_PORT:-8002}:8002"
+    environment:
+      # Service Config
+      - HOST=0.0.0.0
+      - PORT=8002
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+
+      # Ollama Settings
+      - OLLAMA_HOST=http://ollama:11434
+
+      # LLM Provider Settings
+      - LLM_PROVIDER=${LLM_PROVIDER:-openai}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
+
+      # Anthropic Settings (alternative)
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-3-opus-20240229}
+
+      # Local LLM Settings
+      - LOCAL_LLM_PATH=${LOCAL_LLM_PATH:-}
+      - LOCAL_LLM_BACKEND=${LOCAL_LLM_BACKEND:-llama-cpp}
+
+      # Prompt Settings
+      - SYSTEM_PROMPT_PATH=/app/prompts/system_prompt.txt
+      - MAX_TOKENS=${MAX_TOKENS:-1000}
+      - TEMPERATURE=${TEMPERATURE:-0.7}
+
+      # Feature Flags
+      - ENABLE_SUGGESTIONS=${ENABLE_SUGGESTIONS:-true}
+      - ENABLE_SUMMARIZATION=${ENABLE_SUMMARIZATION:-true}
+      - ENABLE_CLASSIFICATION=${ENABLE_CLASSIFICATION:-true}
+
+      # Cache Settings
+      - ENABLE_RESPONSE_CACHE=${ENABLE_RESPONSE_CACHE:-true}
+      - CACHE_TTL=${CACHE_TTL:-1800}
+    volumes:
+      - llm_cache:/app/cache
+      - llm_prompts:/app/prompts
+    networks:
+      - vaani_network
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ============================================================================
+  # Optional: Redis for distributed session state
+  # ============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: vaani_redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - vaani_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    profiles:
+      - redis  # Only start with --profile redis
+
+  # ============================================================================
+  # Optional: Monitoring with Prometheus + Grafana
+  # ============================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: vaani_prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - vaani_network
+    restart: unless-stopped
+    profiles:
+      - monitoring  # Only start with --profile monitoring
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: vaani_grafana
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - vaani_network
+    restart: unless-stopped
+    profiles:
+      - monitoring  # Only start with --profile monitoring
+
+networks:
+  vaani_network:
+    driver: bridge
+    name: vaani_network
+
+volumes:
+  # Ollama data
+  ollama_data:
+    driver: local
+
+  # Voice service volumes
+  voice_models:
+    driver: local
+  voice_cache:
+    driver: local
+
+  # LLM service volumes
+  llm_cache:
+    driver: local
+  llm_prompts:
+    driver: local
+
+  # Redis volume
+  redis_data:
+    driver: local
+
+  # Monitoring volumes
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local

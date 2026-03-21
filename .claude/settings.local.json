@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(py -m pip:*)",
+      "Bash(python:*)",
+      "Bash(dir:*)",
+      "Bash(ls:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker-compose:*)",
+      "Bash(timeout:*)",
+      "Bash(docker start:*)",
+      "Bash(docker exec:*)",
+      "Bash(curl:*)"
+    ]
+  }
+}

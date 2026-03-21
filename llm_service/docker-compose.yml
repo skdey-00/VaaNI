@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  llm_service:
+    build: .
+    container_name: llm_banking_service
+    ports:
+      - "8001:8001"
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - MODEL_NAME=gemma2:9b
+      - MOCK_MODE=false
+    volumes:
+      - ./processes:/app/processes
+      - ./faiss_index:/app/faiss_index
+    depends_on:
+      - ollama
+    restart: unless-stopped
+    networks:
+      - banking_network
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    networks:
+      - banking_network
+    # Optionally, pull models on startup
+    # command: >
+    #   sh -c "ollama serve & sleep 5 && ollama pull gemma2:9b && ollama pull nomic-embed-text && wait"
+
+volumes:
+  ollama_data:
+    driver: local
+
+networks:
+  banking_network:
+    driver: bridge

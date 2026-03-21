@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VaaNI Gateway Test Client</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 { font-size: 28px; margin-bottom: 10px; }
+        .header p { opacity: 0.9; }
+        .controls {
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .input-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex: 1;
+            min-width: 200px;
+        }
+        .input-group label {
+            font-weight: 600;
+            color: #495057;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+        .input-group input, .input-group select {
+            flex: 1;
+            padding: 10px 15px;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        .btn-primary:hover { background: #5568d3; transform: translateY(-1px); }
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        .btn-success:hover { background: #218838; transform: translateY(-1px); }
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        .btn-danger:hover { background: #c82333; transform: translateY(-1px); }
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        .btn-warning:hover { background: #e0a800; transform: translateY(-1px); }
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+        .btn-info:hover { background: #138496; transform: translateY(-1px); }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .status {
+            padding: 15px 20px;
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            margin: 20px;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+        .status.connected {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+        .status.error {
+            background: #f8d7da;
+            border-color: #dc3545;
+        }
+        .messages {
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            background: #f8f9fa;
+        }
+        .message {
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .message.transcript { border-color: #667eea; }
+        .message.translation { border-color: #28a745; }
+        .message.suggestion { border-color: #ffc107; }
+        .message.lid { border-color: #17a2b8; }
+        .message.tts { border-color: #6f42c1; }
+        .message.error { border-color: #dc3545; background: #fee; }
+        .message-type {
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 11px;
+            color: #6c757d;
+            margin-bottom: 5px;
+        }
+        .message-content {
+            font-size: 15px;
+            line-height: 1.5;
+            color: #212529;
+        }
+        .message-meta {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+        .suggestions-list {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0 0 0;
+        }
+        .suggestions-list li {
+            padding: 8px 12px;
+            margin: 5px 0;
+            background: #fff9e6;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .escalate-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            background: #dc3545;
+            color: white;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            margin-left: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎤 VaaNI Gateway Test Client</h1>
+            <p>Real-time voice service orchestration</p>
+        </div>
+
+        <div class="controls">
+            <div class="input-group">
+                <label>Gateway URL:</label>
+                <input type="text" id="gatewayUrl" value="ws://localhost:8000" placeholder="ws://localhost:8000">
+            </div>
+            <div class="input-group">
+                <label>Session ID:</label>
+                <input type="text" id="sessionId" placeholder="Auto-generated" readonly>
+            </div>
+            <button id="startBtn" class="btn-primary">Start Session</button>
+            <button id="connectBtn" class="btn-success" disabled>Connect</button>
+            <button id="disconnectBtn" class="btn-danger" disabled>Disconnect</button>
+        </div>
+
+        <div id="status" class="status">
+            Not connected. Start a session to begin.
+        </div>
+
+        <div class="controls">
+            <div class="input-group">
+                <label>Language:</label>
+                <select id="languageSelect">
+                    <option value="hi">Hindi (hi)</option>
+                    <option value="es">Spanish (es)</option>
+                    <option value="fr">French (fr)</option>
+                    <option value="de">German (de)</option>
+                    <option value="en">English (en)</option>
+                </select>
+            </div>
+            <button id="selectLangBtn" class="btn-info" disabled>Select Language</button>
+            <button id="sendAudioBtn" class="btn-warning" disabled>Send Test Audio</button>
+            <button id="sendResponseBtn" class="btn-primary" disabled>Send Staff Response</button>
+            <button id="endSessionBtn" class="btn-danger" disabled>End Session</button>
+        </div>
+
+        <div id="messages" class="messages"></div>
+    </div>
+
+    <script>
+        let ws = null;
+        let sessionId = null;
+        let isConnected = false;
+
+        const elements = {
+            gatewayUrl: document.getElementById('gatewayUrl'),
+            sessionId: document.getElementById('sessionId'),
+            startBtn: document.getElementById('startBtn'),
+            connectBtn: document.getElementById('connectBtn'),
+            disconnectBtn: document.getElementById('disconnectBtn'),
+            status: document.getElementById('status'),
+            languageSelect: document.getElementById('languageSelect'),
+            selectLangBtn: document.getElementById('selectLangBtn'),
+            sendAudioBtn: document.getElementById('sendAudioBtn'),
+            sendResponseBtn: document.getElementById('sendResponseBtn'),
+            endSessionBtn: document.getElementById('endSessionBtn'),
+            messages: document.getElementById('messages')
+        };
+
+        function updateStatus(message, type = '') {
+            elements.status.textContent = message;
+            elements.status.className = 'status ' + type;
+        }
+
+        function addMessage(type, content, meta = '') {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message ' + type.toLowerCase();
+
+            let html = `<div class="message-type">${type}</div>`;
+            html += `<div class="message-content">${content}</div>`;
+            if (meta) {
+                html += `<div class="message-meta">${meta}</div>`;
+            }
+
+            msgDiv.innerHTML = html;
+            elements.messages.appendChild(msgDiv);
+            elements.messages.scrollTop = elements.messages.scrollHeight;
+        }
+
+        function setButtonsState(state) {
+            const { start, connect, disconnect, connected } = state;
+            elements.startBtn.disabled = !start;
+            elements.connectBtn.disabled = !connect;
+            elements.disconnectBtn.disabled = !disconnect;
+            elements.selectLangBtn.disabled = !connected;
+            elements.sendAudioBtn.disabled = !connected;
+            elements.sendResponseBtn.disabled = !connected;
+            elements.endSessionBtn.disabled = !connected;
+        }
+
+        async function startSession() {
+            try {
+                const url = elements.gatewayUrl.value.replace('ws://', 'http://').replace('wss://', 'https://');
+                const response = await fetch(`${url}/session/start`, { method: 'POST' });
+                const data = await response.json();
+
+                sessionId = data.session_id;
+                elements.sessionId.value = sessionId;
+                elements.connectBtn.disabled = false;
+                elements.startBtn.disabled = true;
+
+                updateStatus(`Session created: ${sessionId}. Click Connect to continue.`, '');
+            } catch (error) {
+                updateStatus(`Failed to start session: ${error.message}`, 'error');
+            }
+        }
+
+        function connect() {
+            if (!sessionId) {
+                updateStatus('No session ID', 'error');
+                return;
+            }
+
+            const wsUrl = `${elements.gatewayUrl.value}/ws/${sessionId}`;
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                isConnected = true;
+                updateStatus(`Connected to session ${sessionId}`, 'connected');
+                setButtonsState({ start: false, connect: false, disconnect: true, connected: true });
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleServerMessage(data);
+            };
+
+            ws.onerror = (error) => {
+                updateStatus('WebSocket error occurred', 'error');
+                console.error('WebSocket error:', error);
+            };
+
+            ws.onclose = () => {
+                isConnected = false;
+                updateStatus('Disconnected from gateway', '');
+                setButtonsState({ start: false, connect: false, disconnect: false, connected: false });
+            };
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+
+        function handleServerMessage(data) {
+            switch (data.type) {
+                case 'transcript':
+                    addMessage('📝 Transcript', data.text,
+                        `Language: ${data.language}, Confidence: ${(data.confidence * 100).toFixed(1)}%`);
+                    break;
+
+                case 'translation':
+                    addMessage('🌐 Translation', data.text,
+                        `Language: ${data.language}`);
+                    break;
+
+                case 'suggestion':
+                    let html = 'Suggested responses:<ul class="suggestions-list">';
+                    data.suggestions.forEach(s => {
+                        html += `<li>${s}</li>`;
+                    });
+                    html += '</ul>';
+                    if (data.escalate) {
+                        html += '<span class="escalate-badge">ESCALATE</span>';
+                    }
+                    addMessage('💡 Suggestion', html,
+                        `Steps: ${data.process_steps.join(', ')}`);
+                    break;
+
+                case 'lid_result':
+                    addMessage('🔍 Language Detected', data.language,
+                        `Confidence: ${(data.confidence * 100).toFixed(1)}%`);
+                    break;
+
+                case 'tts_audio':
+                    addMessage('🔊 TTS Audio',
+                        `${data.audio_b64.substring(0, 50)}... (${data.audio_b64.length} chars)`,
+                        `Language: ${data.language}`);
+                    break;
+
+                case 'error':
+                    addMessage('❌ Error', data.message);
+                    break;
+
+                case 'session_ended':
+                    addMessage('✓', 'Session ended', data.session_id);
+                    disconnect();
+                    break;
+
+                default:
+                    addMessage('?', `Unknown message type: ${data.type}`);
+            }
+        }
+
+        function sendMessage(message) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                updateStatus('Not connected', 'error');
+                return;
+            }
+            ws.send(JSON.stringify(message));
+        }
+
+        function selectLanguage() {
+            const lang = elements.languageSelect.value;
+            sendMessage({ type: 'language_select', language: lang });
+        }
+
+        function sendTestAudio() {
+            // Create dummy base64 audio data
+            const dummyData = btoa('test audio data');
+            sendMessage({ type: 'audio_chunk', data: dummyData });
+        }
+
+        function sendStaffResponse() {
+            const text = prompt('Enter staff response:');
+            if (text) {
+                const lang = elements.languageSelect.value;
+                sendMessage({ type: 'staff_response', text, language: lang });
+            }
+        }
+
+        function endSession() {
+            sendMessage({ type: 'session_end' });
+        }
+
+        // Event listeners
+        elements.startBtn.addEventListener('click', startSession);
+        elements.connectBtn.addEventListener('click', connect);
+        elements.disconnectBtn.addEventListener('click', disconnect);
+        elements.selectLangBtn.addEventListener('click', selectLanguage);
+        elements.sendAudioBtn.addEventListener('click', sendTestAudio);
+        elements.sendResponseBtn.addEventListener('click', sendStaffResponse);
+        elements.endSessionBtn.addEventListener('click', endSession);
+
+        setButtonsState({ start: true, connect: false, disconnect: false, connected: false });
+    </script>
+</body>
+</html>
