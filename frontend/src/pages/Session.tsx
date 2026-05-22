@@ -3,43 +3,59 @@
  *
  * Main layout for active customer session:
  * - TopBar: Full-width at top
- * - Main content: 60% left (TranscriptPanel + ResponseComposer) | 40% right (SuggestionPanel + ProcessGuide)
+ * - PipelineVisualization: Shows AI processing steps (mock mode)
+ * - Main content: 60% left (TranscriptPanel + TextInput) | 40% right (SuggestionPanel + ProcessGuide)
  * - StatusBar: Bottom
  *
- * Integrates all hooks and components for real-time communication
+ * In mock mode: Text input is primary, mock pipeline processes everything client-side
+ * In live mode: Microphone/WebSocket as before
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useMicrophone } from '../hooks/useMicrophone';
 import { useAudioPlayer } from '../hooks/useAudioPlayer';
+import { useMockPipeline } from '../hooks/useMockPipeline';
 import { TopBar } from '../components/TopBar';
 import { TranscriptPanel } from '../components/TranscriptPanel';
 import { SuggestionPanel } from '../components/SuggestionPanel';
 import { ProcessGuide } from '../components/ProcessGuide';
 import { ResponseComposer } from '../components/ResponseComposer';
 import { StatusBar } from '../components/StatusBar';
+import { TextInput } from '../components/TextInput';
+import { PipelineVisualization, PipelineStepData } from '../components/PipelineVisualization';
 import {
   TranscriptEntry,
   Suggestion,
-  ProcessStep,
+  ProcessGuide as ProcessGuideType,
   BANKING_PROCESS_TEMPLATES,
   ClientMessage,
+  SessionSummary,
 } from '../types';
+
+const MOCK_MODE = import.meta.env.VITE_MOCK_MODE === 'true';
 
 interface SessionPageProps {
   sessionId: string;
   onSessionEnd?: (summary: any) => void;
+  onShowMetrics?: () => void;
+  demoPreload?: boolean;
 }
 
-export function SessionPage({ sessionId, onSessionEnd }: SessionPageProps) {
+export function SessionPage({ sessionId, onSessionEnd, onShowMetrics, demoPreload = false }: SessionPageProps) {
   // State
   const [selectedLanguage, setSelectedLanguage] = useState<string>('en');
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-  const [processGuide, setProcessGuide] = useState(BANKING_PROCESS_TEMPLATES.general);
+  const [processGuide, setProcessGuide] = useState<ProcessGuideType>(BANKING_PROCESS_TEMPLATES.general);
   const [languageConfidence, setLanguageConfidence] = useState<number | undefined>();
   const [pre_filledResponse, setPre_filledResponse] = useState<string>('');
+  const [pipelineSteps, setPipelineSteps] = useState<PipelineStepData[]>([]);
+  const [pipelineTotalTime, setPipelineTotalTime] = useState<number | undefined>();
+  const [_sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null);
+
+  // Mock pipeline
+  const mockPipeline = useMockPipeline();
 
   // WebSocket connection
   const { status, send, connect, disconnect } = useWebSocket({
@@ -50,7 +66,7 @@ export function SessionPage({ sessionId, onSessionEnd }: SessionPageProps) {
   });
 
   // Microphone recording
-  const { recordingState, startRecording, stopRecording, pauseRecording, resumeRecording } =
+  const { recordingState, startRecording, pauseRecording, resumeRecording } =
     useMicrophone({
       onChunk: handleAudioChunk,
       onError: (error) => console.error('Microphone error:', error),
@@ -62,15 +78,23 @@ export function SessionPage({ sessionId, onSessionEnd }: SessionPageProps) {
     onPlayEnd: () => console.log('Audio playback ended'),
   });
 
-  // Connect to WebSocket on mount
+  // Connect to WebSocket on mount (or set mock mode as connected)
   useEffect(() => {
     connect(sessionId);
     return () => disconnect();
   }, [sessionId, connect, disconnect]);
 
-  // Send language selection when changed
+  // Demo preload
   useEffect(() => {
-    if (status.connected && selectedLanguage) {
+    if (demoPreload && MOCK_MODE) {
+      const timer = setTimeout(() => handleLoadDemo(), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [demoPreload]);
+
+  // Send language selection when changed (non-mock mode)
+  useEffect(() => {
+    if (!MOCK_MODE && status.connected && selectedLanguage) {
       const message: ClientMessage = {
         type: 'language_select',
         language: selectedLanguage,
@@ -79,18 +103,19 @@ export function SessionPage({ sessionId, onSessionEnd }: SessionPageProps) {
     }
   }, [selectedLanguage, status.connected, send]);
 
-  // Handle incoming WebSocket messages
+  // Handle incoming WebSocket messages (non-mock mode)
   function handleServerMessage(message: any) {
+    if (MOCK_MODE) return;
+
     console.log('Received message:', message);
 
     switch (message.type) {
-      case 'transcript':
-        // Add customer transcript
+      case 'transcript': {
         const newTranscriptEntry: TranscriptEntry = {
           id: `transcript-${Date.now()}`,
           role: 'customer',
           originalText: message.text,
-          translatedText: undefined, // Will be filled by translation message
+          translatedText: undefined,
           language: message.language,
           timestamp: new Date(),
           confidence: message.confidence,
@@ -98,9 +123,9 @@ export function SessionPage({ sessionId, onSessionEnd }: SessionPageProps) {
         setTranscript((prev) => [...prev, newTranscriptEntry]);
         setLanguageConfidence(message.confidence);
         break;
+      }
 
       case 'translation':
-        // Update the last customer transcript with translation
         setTranscript((prev) => {
           const updated = [...prev];
           const lastEntry = updated[updated.length - 1];
@@ -111,8 +136,7 @@ export function SessionPage({ sessionId, onSessionEnd }: SessionPageProps) {
         });
         break;
 
-      case 'suggestion':
-        // Update suggestions and process guide
+      case 'suggestion': {
         const newSuggestions: Suggestion[] = message.suggestions.map((text: string, idx: number) => ({
           id: `suggestion-${idx}`,
           text,
@@ -120,33 +144,29 @@ export function SessionPage({ sessionId, onSessionEnd }: SessionPageProps) {
         }));
         setSuggestions(newSuggestions);
 
-        // Detect process type from suggestions
         const detectedProcess = detectProcessFromSuggestions(message.suggestions, message.process_steps);
         if (detectedProcess) {
           setProcessGuide(detectedProcess);
         }
         break;
+      }
 
       case 'tts_audio':
-        // Play TTS audio
         play(message.audio_b64);
         break;
 
       case 'lid_result':
-        // Update detected language
         setSelectedLanguage(message.language);
         setLanguageConfidence(message.confidence);
         break;
 
       case 'session_ended':
-        // Navigate to summary page
         console.log('Session ended:', message.session_id);
         onSessionEnd?.({ sessionId: message.session_id });
         break;
 
       case 'error':
         console.error('Server error:', message.message);
-        // Could show a toast notification here
         break;
 
       default:
@@ -154,8 +174,31 @@ export function SessionPage({ sessionId, onSessionEnd }: SessionPageProps) {
     }
   }
 
-  // Handle audio chunk from microphone
+  // Handle text input (mock mode primary input)
+  const handleTextInput = useCallback(async (text: string) => {
+    if (!MOCK_MODE) {
+      handleSendResponse(text);
+      return;
+    }
+
+    try {
+      const result = await mockPipeline.processText(text);
+
+      setPipelineSteps(result.pipelineSteps);
+      setPipelineTotalTime(result.totalTime);
+      setTranscript((prev) => [...prev, result.transcript]);
+      setSelectedLanguage(result.transcript.language);
+      setLanguageConfidence(result.transcript.confidence);
+      setSuggestions(result.suggestions);
+      setProcessGuide(result.processGuide);
+    } catch (error) {
+      console.error('Mock pipeline error:', error);
+    }
+  }, [mockPipeline]);
+
+  // Handle audio chunk from microphone (non-mock mode)
   function handleAudioChunk(chunkBase64: string) {
+    if (MOCK_MODE) return;
     const message: ClientMessage = {
       type: 'audio_chunk',
       data: chunkBase64,
@@ -163,51 +206,32 @@ export function SessionPage({ sessionId, onSessionEnd }: SessionPageProps) {
     send(message);
   }
 
-  // Detect banking process from AI suggestions
-  function detectProcessFromSuggestions(suggestions: string[], steps: string[]): any {
+  function detectProcessFromSuggestions(suggestions: string[], steps: string[]): ProcessGuideType | undefined {
     const text = suggestions.join(' ').toLowerCase() + ' ' + steps.join(' ').toLowerCase();
 
-    if (text.includes('account') && text.includes('open')) {
-      return BANKING_PROCESS_TEMPLATES.account_opening;
-    } else if (text.includes('loan') || text.includes('credit')) {
-      return BANKING_PROCESS_TEMPLATES.loan_inquiry;
-    } else if (text.includes('card') || text.includes('debit') || text.includes('atm')) {
-      return BANKING_PROCESS_TEMPLATES.card_issue;
-    } else if (text.includes('balance') || text.includes('statement')) {
-      return BANKING_PROCESS_TEMPLATES.balance_inquiry;
-    } else if (text.includes('transfer') || text.includes('send') || text.includes('payment')) {
-      return BANKING_PROCESS_TEMPLATES.fund_transfer;
-    } else if (text.includes('complaint') || text.includes('issue') || text.includes('problem')) {
-      return BANKING_PROCESS_TEMPLATES.complaint;
-    }
-
+    if (text.includes('account') && text.includes('open')) return BANKING_PROCESS_TEMPLATES.account_opening;
+    if (text.includes('loan') || text.includes('credit')) return BANKING_PROCESS_TEMPLATES.loan_inquiry;
+    if (text.includes('card') || text.includes('debit') || text.includes('atm')) return BANKING_PROCESS_TEMPLATES.card_issue;
+    if (text.includes('balance') || text.includes('statement')) return BANKING_PROCESS_TEMPLATES.balance_inquiry;
+    if (text.includes('transfer') || text.includes('send') || text.includes('payment')) return BANKING_PROCESS_TEMPLATES.fund_transfer;
+    if (text.includes('complaint') || text.includes('issue') || text.includes('problem')) return BANKING_PROCESS_TEMPLATES.complaint;
     return undefined;
   }
 
-  // Handle record button toggle
   const handleRecordToggle = () => {
     if (recordingState.isRecording) {
-      if (recordingState.isPaused) {
-        resumeRecording();
-      } else {
-        pauseRecording();
-      }
+      if (recordingState.isPaused) { resumeRecording(); } else { pauseRecording(); }
     } else {
       startRecording();
     }
   };
 
-  // Handle staff response send
   const handleSendResponse = useCallback(
     (text: string) => {
-      const message: ClientMessage = {
-        type: 'staff_response',
-        text,
-        language: selectedLanguage,
-      };
-      send(message);
-
-      // Add to transcript
+      if (!MOCK_MODE) {
+        const message: ClientMessage = { type: 'staff_response', text, language: selectedLanguage };
+        send(message);
+      }
       const staffEntry: TranscriptEntry = {
         id: `staff-${Date.now()}`,
         role: 'staff',
@@ -216,60 +240,57 @@ export function SessionPage({ sessionId, onSessionEnd }: SessionPageProps) {
         timestamp: new Date(),
       };
       setTranscript((prev) => [...prev, staffEntry]);
-
       setPre_filledResponse('');
     },
     [send, selectedLanguage]
   );
 
-  // Handle suggestion click
   const handleSuggestionClick = (suggestionText: string) => {
     setPre_filledResponse(suggestionText);
   };
 
-  // Handle process step toggle
   const handleStepToggle = (stepId: string) => {
     setProcessGuide((prev) => {
       if (!prev) return prev;
-
+      const currentIdx = prev.steps.findIndex((s) => s.id === stepId);
+      const currentStep = prev.steps[currentIdx];
+      if (!currentStep || !currentStep.active) return prev;
+      const newCompleted = !currentStep.completed;
       return {
         ...prev,
-        steps: prev.steps.map((step) => {
-          if (step.id === stepId && step.active) {
-            const newStep = { ...step, completed: !step.completed };
-
-            // Activate next step if this was completed
-            if (newStep.completed) {
-              const currentIndex = prev.steps.findIndex((s) => s.id === stepId);
-              const nextStep = prev.steps[currentIndex + 1];
-              if (nextStep) {
-                return { ...step, completed: true };
-              }
-            }
-
-            return newStep;
-          }
-          return step;
-        }).map((step, idx, steps) => {
-          // Activate next step after current is completed
-          const currentIdx = steps.findIndex((s) => s.id === stepId);
-          if (idx === currentIdx + 1 && steps[currentIdx].completed) {
-            return { ...step, active: true };
-          }
+        steps: prev.steps.map((step, idx) => {
+          if (step.id === stepId) return { ...step, completed: newCompleted };
+          if (idx === currentIdx + 1 && newCompleted) return { ...step, active: true };
           return step;
         }),
       };
     });
   };
 
-  // Handle new session
-  const handleNewSession = () => {
-    window.location.reload();
-  };
+  const handleLoadDemo = useCallback(async () => {
+    setTranscript([]);
+    setSuggestions([]);
+    setProcessGuide(BANKING_PROCESS_TEMPLATES.general);
+    setPipelineSteps([]);
+    const demoText = '\u092E\u0941\u091D\u0947 \u092B\u093F\u0915\u094D\u0938\u0921\u093C \u0921\u093F\u092A\u0949\u091C\u093F\u091F \u0916\u094B\u0932\u0928\u0940 \u0939\u0948, \u0915\u094D\u092F\u093E \u092C\u094D\u092F\u093E\u091C \u0926\u0930 \u092C\u0924\u093E\u090F\u0902\u0917\u0947?';
+    await handleTextInput(demoText);
+  }, [handleTextInput]);
+
+  const handleEndSession = useCallback(() => {
+    if (MOCK_MODE && transcript.length > 0) {
+      const summaryData = mockPipeline.generateSummary(transcript);
+      const summary: SessionSummary = { ...summaryData, transcript };
+      setSessionSummary(summary);
+      onSessionEnd?.(summary);
+    } else {
+      onSessionEnd?.({ sessionId });
+    }
+  }, [transcript, mockPipeline, onSessionEnd, sessionId]);
+
+  const handleNewSession = () => { window.location.reload(); };
 
   return (
     <div className="h-screen flex flex-col bg-gray-100">
-      {/* Top Bar */}
       <TopBar
         selectedLanguage={selectedLanguage}
         onLanguageChange={setSelectedLanguage}
@@ -277,54 +298,53 @@ export function SessionPage({ sessionId, onSessionEnd }: SessionPageProps) {
         isPaused={recordingState.isPaused}
         onRecordToggle={handleRecordToggle}
         onNewSession={handleNewSession}
+        onLoadDemo={MOCK_MODE ? handleLoadDemo : undefined}
+        onShowMetrics={onShowMetrics}
         sessionDuration={recordingState.duration}
         isConnected={status.connected}
+        isProcessing={mockPipeline.isProcessing}
       />
 
-      {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Column (60%) */}
-        <div className="w-3/5 flex flex-col border-r border-gray-200">
-          {/* Transcript Panel */}
-          <div className="flex-1 overflow-hidden">
-            <TranscriptPanel
-              transcript={transcript}
-              isPlaying={waveformData.length > 0}
-            />
-          </div>
+      {MOCK_MODE && pipelineSteps.length > 0 && (
+        <PipelineVisualization steps={pipelineSteps} totalTime={pipelineTotalTime} />
+      )}
 
-          {/* Response Composer */}
-          <ResponseComposer
-            onSend={handleSendResponse}
-            placeholder="Type your response here or click a suggestion..."
-            disabled={!status.connected}
-            prefillType={pre_filledResponse}
-          />
+      <div className="flex-1 flex overflow-hidden">
+        <div className="w-3/5 flex flex-col border-r border-gray-200">
+          <div className="flex-1 overflow-hidden">
+            <TranscriptPanel transcript={transcript} isPlaying={waveformData.length > 0} />
+          </div>
+          {MOCK_MODE ? (
+            <TextInput
+              onSubmit={handleTextInput}
+              disabled={mockPipeline.isProcessing}
+              placeholder="Type customer query in any Indian language..."
+            />
+          ) : (
+            <ResponseComposer
+              onSend={handleSendResponse}
+              placeholder="Type your response here or click a suggestion..."
+              disabled={!status.connected}
+              prefillType={pre_filledResponse}
+            />
+          )}
         </div>
 
-        {/* Right Column (40%) */}
         <div className="w-2/5 flex flex-col">
-          {/* Suggestion Panel */}
           <div className="flex-1 overflow-hidden">
             <SuggestionPanel
               suggestions={suggestions}
               onSuggestionClick={handleSuggestionClick}
               escalate={false}
-              loading={status.connected && suggestions.length === 0}
+              loading={status.connected && suggestions.length === 0 && !MOCK_MODE}
             />
           </div>
-
-          {/* Process Guide */}
           <div className="h-1/2 overflow-hidden">
-            <ProcessGuide
-              processGuide={processGuide}
-              onStepToggle={handleStepToggle}
-            />
+            <ProcessGuide processGuide={processGuide} onStepToggle={handleStepToggle} />
           </div>
         </div>
       </div>
 
-      {/* Status Bar */}
       <StatusBar
         connectionStatus={status}
         currentLanguage={selectedLanguage}
@@ -333,7 +353,17 @@ export function SessionPage({ sessionId, onSessionEnd }: SessionPageProps) {
         latency={status.latency}
       />
 
-      {/* Recording Volume Indicator (overlay) */}
+      {MOCK_MODE && transcript.length > 0 && (
+        <div className="fixed bottom-16 right-6 z-10">
+          <button
+            onClick={handleEndSession}
+            className="flex items-center gap-2 px-5 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium shadow-lg transition-all"
+          >
+            End Session
+          </button>
+        </div>
+      )}
+
       {recordingState.isRecording && !recordingState.isPaused && (
         <div className="fixed bottom-16 left-6 bg-gray-900 bg-opacity-90 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-3">
           <div className="flex gap-1 items-end h-6">
@@ -341,10 +371,7 @@ export function SessionPage({ sessionId, onSessionEnd }: SessionPageProps) {
               <div
                 key={i}
                 className="w-1 bg-banking-400 rounded"
-                style={{
-                  height: `${20 + recordingState.volume * 0.8}%`,
-                  transition: 'height 50ms ease',
-                }}
+                style={{ height: `${20 + recordingState.volume * 0.8}%`, transition: 'height 50ms ease' }}
               />
             ))}
           </div>

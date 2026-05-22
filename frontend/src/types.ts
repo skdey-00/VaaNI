@@ -157,6 +157,25 @@ export interface AudioPlayback {
 }
 
 // ============================================================================
+// Pipeline & NER Types (for mock mode visualization)
+// ============================================================================
+
+export interface PipelineStepInfo {
+  id: string;
+  label: string;
+  status: 'pending' | 'running' | 'completed';
+  duration?: number;
+  detail?: string;
+}
+
+export interface NEREntity {
+  text: string;
+  label: string;
+  start: number;
+  end: number;
+}
+
+// ============================================================================
 // Language Options
 // ============================================================================
 

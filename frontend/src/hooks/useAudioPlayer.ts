@@ -35,7 +35,6 @@ interface UseAudioPlayerReturn {
 
 export function useAudioPlayer(options: UseAudioPlayerOptions = {}): UseAudioPlayerReturn {
   const {
-    autoPlay = true,
     onPlayStart,
     onPlayEnd,
     onError,

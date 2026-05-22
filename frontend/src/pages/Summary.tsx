@@ -7,9 +7,10 @@
  * - Full conversation log as scrollable table
  * - PDF export functionality
  * - CBS integration stub
+ * - Mock mode: works entirely client-side
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Download,
   FileText,
@@ -18,7 +19,6 @@ import {
   Globe,
   Tag,
   Home,
-  Printer,
   FileDown,
   CheckCircle,
   XCircle,
@@ -28,9 +28,12 @@ import {
 } from 'lucide-react';
 import { TranscriptEntry, SessionSummary } from '../types';
 
+const MOCK_MODE = import.meta.env.VITE_MOCK_MODE === 'true';
+
 interface SummaryPageProps {
   sessionId: string;
   onNewSession: () => void;
+  mockSummary?: SessionSummary | null;
 }
 
 interface TranscriptRow {
@@ -42,7 +45,7 @@ interface TranscriptRow {
   language: string;
 }
 
-export function SummaryPage({ sessionId, onNewSession }: SummaryPageProps) {
+export function SummaryPage({ sessionId, onNewSession, mockSummary }: SummaryPageProps) {
   const [summary, setSummary] = useState<SessionSummary | null>(null);
   const [transcript, setTranscript] = useState<TranscriptRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,21 +57,34 @@ export function SummaryPage({ sessionId, onNewSession }: SummaryPageProps) {
   });
 
   useEffect(() => {
-    fetchSummary();
-    fetchTranscript();
-  }, [sessionId]);
+    if (MOCK_MODE && mockSummary) {
+      // Use mock summary directly
+      setSummary(mockSummary);
+      const rows: TranscriptRow[] = mockSummary.transcript.map((entry: TranscriptEntry, idx: number) => ({
+        id: `transcript-${idx}`,
+        time: new Date(entry.timestamp).toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+        }),
+        speaker: entry.role === 'customer' ? 'Customer' : 'Staff',
+        originalText: entry.originalText || '',
+        translatedText: entry.translatedText || (entry.role === 'staff' ? entry.originalText || '' : ''),
+        language: entry.language,
+      }));
+      setTranscript(rows);
+      setLoading(false);
+    } else {
+      fetchSummary();
+      fetchTranscript();
+    }
+  }, [sessionId, mockSummary]);
 
   async function fetchSummary() {
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:8000/session/${sessionId}/end`, {
-        method: 'POST',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch summary');
-      }
-
+      const response = await fetch(`http://localhost:8000/session/${sessionId}/end`, { method: 'POST' });
+      if (!response.ok) throw new Error('Failed to fetch summary');
       const data = await response.json();
       setSummary({
         summaryEn: data.summary_en,
@@ -89,7 +105,6 @@ export function SummaryPage({ sessionId, onNewSession }: SummaryPageProps) {
       const response = await fetch(`http://localhost:8000/session/${sessionId}/transcript`);
       if (!response.ok) throw new Error('Failed to fetch transcript');
       const data = await response.json();
-
       const rows: TranscriptRow[] = (data.transcript || []).map((entry: any, idx: number) => ({
         id: `transcript-${idx}`,
         time: new Date(entry.timestamp).toLocaleTimeString('en-US', {
@@ -99,10 +114,9 @@ export function SummaryPage({ sessionId, onNewSession }: SummaryPageProps) {
         }),
         speaker: entry.role,
         originalText: entry.text,
-        translatedText: entry.role === 'customer' ? '' : entry.text, // Simplified for demo
+        translatedText: entry.role === 'customer' ? '' : entry.text,
         language: entry.language,
       }));
-
       setTranscript(rows);
     } catch (error) {
       console.error('Failed to fetch transcript:', error);
@@ -112,21 +126,19 @@ export function SummaryPage({ sessionId, onNewSession }: SummaryPageProps) {
   async function handleExportPDF() {
     setExporting(true);
     try {
-      const response = await fetch(`http://localhost:8000/session/${sessionId}/export/pdf`);
-
-      if (!response.ok) {
-        throw new Error('Failed to generate PDF');
+      if (MOCK_MODE) {
+        // In mock mode, export JSON instead
+        handleExportJSON();
+        return;
       }
-
-      // Get filename from Content-Disposition header
+      const response = await fetch(`http://localhost:8000/session/${sessionId}/export/pdf`);
+      if (!response.ok) throw new Error('Failed to generate PDF');
       const contentDisposition = response.headers.get('Content-Disposition');
       let filename = `vaani_session_${sessionId}.pdf`;
       if (contentDisposition) {
         const match = contentDisposition.match(/filename="(.+)"/);
         if (match) filename = match[1];
       }
-
-      // Download blob
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -136,7 +148,6 @@ export function SummaryPage({ sessionId, onNewSession }: SummaryPageProps) {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-
       showToast('PDF exported successfully', 'success');
     } catch (error) {
       console.error('PDF export failed:', error);
@@ -149,18 +160,14 @@ export function SummaryPage({ sessionId, onNewSession }: SummaryPageProps) {
   async function handleExportJSON() {
     setExporting(true);
     try {
-      const response = await fetch(`http://localhost:8000/session/${sessionId}/export/json`, {
-        method: 'POST',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to export JSON');
-      }
-
-      const data = await response.json();
+      const data = {
+        sessionId,
+        date: new Date().toISOString(),
+        summary: summary,
+        transcript: transcript,
+      };
       const content = JSON.stringify(data, null, 2);
       const filename = `vaani_session_${sessionId}.json`;
-
       const blob = new Blob([content], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -170,7 +177,6 @@ export function SummaryPage({ sessionId, onNewSession }: SummaryPageProps) {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-
       showToast('JSON exported successfully', 'success');
     } catch (error) {
       console.error('JSON export failed:', error);
@@ -181,10 +187,7 @@ export function SummaryPage({ sessionId, onNewSession }: SummaryPageProps) {
   }
 
   function handlePushToCBS() {
-    // Stub for CBS integration
     console.log('Pushing to CBS:', { sessionId, summary, transcript });
-
-    // Simulate API call
     setTimeout(() => {
       showToast('Successfully pushed to Core Banking System', 'success');
     }, 500);
@@ -228,7 +231,6 @@ export function SummaryPage({ sessionId, onNewSession }: SummaryPageProps) {
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
-      {/* Toast Notification */}
       {toast.show && (
         <div
           className={`fixed top-4 right-4 z-50 flex items-center gap-3 px-6 py-4 rounded-lg shadow-lg animate-slide-in ${
@@ -237,16 +239,12 @@ export function SummaryPage({ sessionId, onNewSession }: SummaryPageProps) {
         >
           {toast.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
           <span className="font-medium">{toast.message}</span>
-          <button
-            onClick={() => setToast((prev) => ({ ...prev, show: false }))}
-            className="ml-2 hover:opacity-80"
-          >
+          <button onClick={() => setToast((prev) => ({ ...prev, show: false }))} className="ml-2 hover:opacity-80">
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      {/* Header */}
       <div className="bg-white border-b border-gray-200 shadow-sm no-print">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
@@ -254,7 +252,6 @@ export function SummaryPage({ sessionId, onNewSession }: SummaryPageProps) {
               <h1 className="text-2xl font-bold text-gray-900">Session Summary</h1>
               <p className="text-sm text-gray-500 mt-1">Review and export conversation details</p>
             </div>
-
             <div className="flex items-center gap-3">
               <button
                 onClick={handlePushToCBS}
@@ -275,10 +272,8 @@ export function SummaryPage({ sessionId, onNewSession }: SummaryPageProps) {
         </div>
       </div>
 
-      {/* Content */}
       <div className="flex-1 overflow-auto">
         <div className="max-w-7xl mx-auto px-6 py-6">
-          {/* Quick Actions Bar */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6 no-print">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div className="flex items-center gap-6 text-sm">
@@ -297,8 +292,12 @@ export function SummaryPage({ sessionId, onNewSession }: SummaryPageProps) {
                   <span className="text-gray-600">Messages:</span>
                   <span className="font-medium text-gray-900">{transcript.length}</span>
                 </div>
+                {MOCK_MODE && (
+                  <div className="flex items-center gap-2 px-3 py-1 bg-purple-100 rounded-full">
+                    <span className="text-xs font-medium text-purple-700">Demo Mode</span>
+                  </div>
+                )}
               </div>
-
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleExportJSON}
@@ -314,15 +313,13 @@ export function SummaryPage({ sessionId, onNewSession }: SummaryPageProps) {
                   className="flex items-center gap-2 px-4 py-2 bg-banking-600 text-white rounded-lg text-sm font-medium hover:bg-banking-700 transition-colors disabled:opacity-50"
                 >
                   <FileDown className="w-4 h-4" />
-                  {exporting ? 'Generating...' : 'Export PDF'}
+                  {exporting ? 'Generating...' : 'Export'}
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Status Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            {/* Query Type */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-banking-100 rounded-lg flex items-center justify-center">
@@ -334,8 +331,6 @@ export function SummaryPage({ sessionId, onNewSession }: SummaryPageProps) {
                 </div>
               </div>
             </div>
-
-            {/* Resolved Status */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
@@ -347,8 +342,6 @@ export function SummaryPage({ sessionId, onNewSession }: SummaryPageProps) {
                 </div>
               </div>
             </div>
-
-            {/* Escalation Status */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -362,9 +355,7 @@ export function SummaryPage({ sessionId, onNewSession }: SummaryPageProps) {
             </div>
           </div>
 
-          {/* Bilingual Summaries */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            {/* English Summary */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200 bg-blue-50">
                 <div className="flex items-center gap-2">
@@ -376,8 +367,6 @@ export function SummaryPage({ sessionId, onNewSession }: SummaryPageProps) {
                 <p className="text-gray-700 leading-relaxed whitespace-pre-line">{summary.summaryEn}</p>
               </div>
             </div>
-
-            {/* Local Language Summary */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200 bg-yellow-50">
                 <div className="flex items-center gap-2">
@@ -391,7 +380,6 @@ export function SummaryPage({ sessionId, onNewSession }: SummaryPageProps) {
             </div>
           </div>
 
-          {/* Conversation Log Table */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
             <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
               <div className="flex items-center justify-between">
@@ -402,23 +390,14 @@ export function SummaryPage({ sessionId, onNewSession }: SummaryPageProps) {
                 <span className="text-sm text-gray-500">{transcript.length} messages</span>
               </div>
             </div>
-
             <div className="overflow-x-auto max-h-96 overflow-y-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 sticky top-0">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Time
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Speaker
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-2/5">
-                      Original Text
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-2/5">
-                      English Translation
-                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Time</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Speaker</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-2/5">Original Text</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-2/5">English Translation</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -426,25 +405,18 @@ export function SummaryPage({ sessionId, onNewSession }: SummaryPageProps) {
                     <tr key={row.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{row.time}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            row.speaker === 'Customer'
-                              ? 'bg-blue-100 text-blue-800'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}
-                        >
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          row.speaker === 'Customer' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
                           {row.speaker}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">{row.originalText}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600 italic">
-                        {row.translatedText || '—'}
-                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600 italic">{row.translatedText || '\u2014'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-
               {transcript.length === 0 && (
                 <div className="text-center py-12">
                   <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
@@ -454,7 +426,6 @@ export function SummaryPage({ sessionId, onNewSession }: SummaryPageProps) {
             </div>
           </div>
 
-          {/* Staff Notes */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 no-print">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Staff Notes</h3>
             <textarea
@@ -470,10 +441,9 @@ export function SummaryPage({ sessionId, onNewSession }: SummaryPageProps) {
         </div>
       </div>
 
-      {/* Footer */}
       <div className="bg-white border-t border-gray-200 px-6 py-3 no-print">
         <div className="max-w-7xl mx-auto flex items-center justify-between text-sm text-gray-500">
-          <span>Generated by VaaNI — Confidential Banking Record</span>
+          <span>Generated by VaaNI \u2014 Confidential Banking Record</span>
           <span>{new Date().toLocaleString()}</span>
         </div>
       </div>

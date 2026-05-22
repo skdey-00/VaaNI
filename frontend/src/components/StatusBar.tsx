@@ -8,16 +8,13 @@
  * - Active session info
  */
 
-import React from 'react';
 import {
   Wifi,
-  WifiOff,
   Clock,
   Globe,
   Activity,
   CheckCircle,
   XCircle,
-  AlertCircle,
 } from 'lucide-react';
 import { ConnectionStatus } from '../types';
 

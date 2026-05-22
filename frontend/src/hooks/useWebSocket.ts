@@ -5,7 +5,7 @@
  * Features:
  * - Auto-reconnection with exponential backoff
  * - Message queuing while connecting
- * - Mock mode for development
+ * - Mock mode for development (no-op - mock pipeline is used instead)
  * - Typed send/receive API
  */
 
@@ -40,7 +40,6 @@ interface UseWebSocketReturn {
 
 export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketReturn {
   const {
-    autoConnect = false,
     reconnectInterval = 3000,
     maxReconnectAttempts = 5,
     onMessage,
@@ -55,55 +54,18 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
   const [sessionId, setSessionId] = useState<string | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const messageQueueRef = useRef<ClientMessage[]>([]);
-  const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastPongRef = useRef<number>(Date.now());
 
-  // Mock message generator for development
+  // In mock mode, just mark as connected and don't do anything
   const startMockMode = useCallback(() => {
-    console.log('🎭 Mock mode enabled - simulating WebSocket messages');
-
-    // Simulate connecting
-    setStatus({ connected: true, connecting: false });
-    onStatusChange?.({ connected: true, connecting: false });
-
-    // Simulate messages periodically
-    const mockInterval = setInterval(() => {
-      if (Math.random() > 0.7) {
-        // Randomly send different message types
-        const rand = Math.random();
-        let mockMessage: ServerMessage;
-
-        if (rand < 0.3) {
-          const { createMockTranscript } = await import('../types');
-          mockMessage = createMockTranscript();
-        } else if (rand < 0.5) {
-          const { createMockTranslation } = await import('../types');
-          mockMessage = createMockTranslation();
-        } else if (rand < 0.7) {
-          const { createMockSuggestions } = await import('../types');
-          mockMessage = createMockSuggestions();
-        } else if (rand < 0.85) {
-          const { createMockLID } = await import('../types');
-          mockMessage = createMockLID();
-        } else {
-          // TTS audio
-          mockMessage = {
-            type: 'tts_audio',
-            audio_b64: btoa('mock audio data'),
-            language: 'en',
-          };
-        }
-
-        setLastMessage(mockMessage);
-        onMessage?.(mockMessage);
-      }
-    }, 2000);
-
-    return () => clearInterval(mockInterval);
-  }, [onMessage, onStatusChange]);
+    console.log('🎭 Mock mode: WebSocket replaced by client-side mock pipeline');
+    setStatus({ connected: true, connecting: false, latency: 0 });
+    onStatusChange?.({ connected: true, connecting: false, latency: 0 });
+  }, [onStatusChange]);
 
   // Send queued messages
   const flushQueue = useCallback(() => {
@@ -161,7 +123,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
       wsRef.current.close();
     }
 
-    // Start mock mode if enabled
+    // Start mock mode if enabled - no actual WebSocket
     if (MOCK_MODE) {
       setSessionId(newSessionId);
       startMockMode();

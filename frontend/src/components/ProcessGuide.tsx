@@ -8,9 +8,8 @@
  * - Progress indicator
  */
 
-import React from 'react';
 import { Check, Circle, ListChecks } from 'lucide-react';
-import { ProcessGuide as ProcessGuideType, ProcessStep } from '../types';
+import { ProcessGuide as ProcessGuideType } from '../types';
 
 interface ProcessGuideProps {
   processGuide: ProcessGuideType | undefined;

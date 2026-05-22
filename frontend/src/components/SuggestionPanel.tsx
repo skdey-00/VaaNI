@@ -7,7 +7,6 @@
  * - Shows escalation warning if needed
  */
 
-import React from 'react';
 import { Lightbulb, AlertTriangle } from 'lucide-react';
 import { Suggestion } from '../types';
 

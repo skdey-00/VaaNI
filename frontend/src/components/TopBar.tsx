@@ -7,11 +7,14 @@
  * - Record/Pause button with flashing red dot indicator
  * - New session button
  * - Connection status indicator
+ * - Load Demo button (hackathon)
  */
 
-import React, { useState, useEffect } from 'react';
-import { Mic, MicOff, Square, RotateCcw, Wifi, WifiOff, Clock } from 'lucide-react';
-import { LanguageOption, LANGUAGES } from '../types';
+import { useState, useEffect } from 'react';
+import { Mic, Square, RotateCcw, Wifi, WifiOff, Clock, Zap, BarChart3 } from 'lucide-react';
+import { LANGUAGES } from '../types';
+
+const MOCK_MODE = import.meta.env.VITE_MOCK_MODE === 'true';
 
 interface TopBarProps {
   selectedLanguage: string;
@@ -20,8 +23,11 @@ interface TopBarProps {
   isPaused: boolean;
   onRecordToggle: () => void;
   onNewSession: () => void;
+  onLoadDemo?: () => void;
+  onShowMetrics?: () => void;
   sessionDuration: number;
   isConnected: boolean;
+  isProcessing?: boolean;
   className?: string;
 }
 
@@ -32,14 +38,17 @@ export function TopBar({
   isPaused,
   onRecordToggle,
   onNewSession,
+  onLoadDemo,
+  onShowMetrics,
   sessionDuration,
   isConnected,
+  isProcessing = false,
   className = '',
 }: TopBarProps) {
   const [duration, setDuration] = useState(0);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval>;
     if (isRecording && !isPaused) {
       interval = setInterval(() => {
         setDuration((d) => d + 1);
@@ -95,7 +104,7 @@ export function TopBar({
               {isConnected ? (
                 <div className="flex items-center gap-1.5 text-green-600">
                   <Wifi className="w-4 h-4" />
-                  <span className="text-xs font-medium">Connected</span>
+                  <span className="text-xs font-medium">{MOCK_MODE ? 'Demo Mode' : 'Connected'}</span>
                 </div>
               ) : (
                 <div className="flex items-center gap-1.5 text-red-600">
@@ -106,8 +115,31 @@ export function TopBar({
             </div>
           </div>
 
-          {/* Right: Recording Controls & New Session */}
+          {/* Right: Recording Controls & Buttons */}
           <div className="flex items-center gap-3">
+            {/* Load Demo Button (Mock mode only) */}
+            {MOCK_MODE && onLoadDemo && (
+              <button
+                onClick={onLoadDemo}
+                disabled={isProcessing}
+                className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white rounded-lg font-medium transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Zap className="w-4 h-4" />
+                Load Demo
+              </button>
+            )}
+
+            {/* Metrics Button */}
+            {onShowMetrics && (
+              <button
+                onClick={onShowMetrics}
+                className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white rounded-lg font-medium transition-all shadow-sm"
+              >
+                <BarChart3 className="w-4 h-4" />
+                Metrics
+              </button>
+            )}
+
             {/* Recording Button */}
             <button
               onClick={onRecordToggle}

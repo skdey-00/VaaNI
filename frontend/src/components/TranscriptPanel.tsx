@@ -8,7 +8,7 @@
  * - Smooth animations for new messages
  */
 
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Scroll } from 'lucide-react';
 import { TranscriptEntry } from '../types';
 
