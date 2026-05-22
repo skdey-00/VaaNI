@@ -1,11 +1,7 @@
 /**
- * ProcessGuide Component
+ * ProcessGuide Component — Dark Theme
  *
- * Displays step-by-step checklist for the current banking process:
- * - Numbered steps with checkboxes
- * - Active step is highlighted
- * - Staff can manually tick steps
- * - Progress indicator
+ * Displays step-by-step checklist for the current banking process.
  */
 
 import { Check, Circle, ListChecks } from 'lucide-react';
@@ -24,16 +20,16 @@ export function ProcessGuide({
 }: ProcessGuideProps) {
   if (!processGuide) {
     return (
-      <div className={`bg-white flex flex-col ${className}`}>
-        <div className="px-5 py-4 border-b border-gray-200">
+      <div className={`bg-zinc-950 flex flex-col ${className}`}>
+        <div className="px-5 py-4 border-b border-zinc-800">
           <div className="flex items-center gap-2">
-            <ListChecks className="w-5 h-5 text-banking-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Process Guide</h2>
+            <ListChecks className="w-5 h-5 text-banking-500" />
+            <h2 className="text-lg font-semibold text-zinc-100">Process Guide</h2>
           </div>
         </div>
 
         <div className="flex-1 flex items-center justify-center p-6">
-          <p className="text-sm text-gray-500 text-center">
+          <p className="text-sm text-zinc-500 text-center">
             Process guide will appear based on customer inquiry
           </p>
         </div>
@@ -45,22 +41,22 @@ export function ProcessGuide({
   const progress = (completedCount / processGuide.steps.length) * 100;
 
   return (
-    <div className={`bg-white flex flex-col ${className}`}>
+    <div className={`bg-zinc-950 flex flex-col ${className}`}>
       {/* Header */}
-      <div className="px-5 py-4 border-b border-gray-200">
+      <div className="px-5 py-4 border-b border-zinc-800">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <ListChecks className="w-5 h-5 text-banking-600" />
-            <h2 className="text-lg font-semibold text-gray-900">{processGuide.name}</h2>
+            <ListChecks className="w-5 h-5 text-banking-500" />
+            <h2 className="text-lg font-semibold text-zinc-100">{processGuide.name}</h2>
           </div>
-          <span className="text-sm font-medium text-banking-600">
+          <span className="text-sm font-medium text-banking-400">
             {completedCount}/{processGuide.steps.length}
           </span>
         </div>
 
         {/* Progress Bar */}
         <div className="mt-3">
-          <div className="w-full bg-gray-200 rounded-full h-2">
+          <div className="w-full bg-zinc-800 rounded-full h-2">
             <div
               className="bg-banking-600 h-2 rounded-full transition-all duration-300"
               style={{ width: `${progress}%` }}
@@ -78,12 +74,12 @@ export function ProcessGuide({
               onClick={() => onStepToggle(step.id)}
               disabled={step.active}
               className={`
-                w-full text-left p-4 rounded-lg border-2 transition-all group
+                w-full text-left p-4 rounded-lg border transition-all group
                 ${step.completed
-                  ? 'bg-green-50 border-green-300 hover:bg-green-100'
+                  ? 'bg-emerald-950/30 border-emerald-800/40 hover:bg-emerald-950/50'
                   : step.active
-                    ? 'bg-banking-50 border-banking-400 shadow-sm'
-                    : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                    ? 'bg-banking-950/30 border-banking-700/50 shadow-sm shadow-banking-600/10'
+                    : 'bg-zinc-900 border-zinc-800 hover:bg-zinc-800'
                 }
                 ${step.active ? 'cursor-pointer' : 'cursor-default'}
               `}
@@ -92,15 +88,15 @@ export function ProcessGuide({
                 {/* Step Number / Checkbox */}
                 <div className="flex-shrink-0">
                   {step.completed ? (
-                    <div className="w-7 h-7 bg-green-500 rounded-full flex items-center justify-center">
+                    <div className="w-7 h-7 bg-emerald-600 rounded-full flex items-center justify-center">
                       <Check className="w-4 h-4 text-white" />
                     </div>
                   ) : step.active ? (
-                    <div className="w-7 h-7 bg-banking-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                    <div className="w-7 h-7 bg-banking-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
                       {step.number}
                     </div>
                   ) : (
-                    <div className="w-7 h-7 bg-gray-300 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                    <div className="w-7 h-7 bg-zinc-700 rounded-full flex items-center justify-center text-zinc-400 text-sm font-bold">
                       {step.number}
                     </div>
                   )}
@@ -111,30 +107,28 @@ export function ProcessGuide({
                   <p
                     className={`
                       text-sm font-medium
-                      ${step.completed ? 'text-green-800 line-through' : 'text-gray-800'}
-                      ${step.active && !step.completed ? 'text-banking-700' : ''}
+                      ${step.completed ? 'text-emerald-400 line-through' : 'text-zinc-300'}
+                      ${step.active && !step.completed ? 'text-banking-300' : ''}
                     `}
                   >
                     {step.text}
                   </p>
 
-                  {/* Step Status Badge */}
                   {step.active && !step.completed && (
-                    <span className="inline-block mt-1.5 text-xs font-medium text-banking-600 bg-banking-100 px-2 py-0.5 rounded">
+                    <span className="badge-info mt-1.5">
                       Current Step
                     </span>
                   )}
 
                   {step.completed && (
-                    <span className="inline-block mt-1.5 text-xs font-medium text-green-600 bg-green-100 px-2 py-0.5 rounded">
+                    <span className="badge-success mt-1.5">
                       Completed
                     </span>
                   )}
                 </div>
 
-                {/* Clickable indicator for active steps */}
                 {step.active && !step.completed && (
-                  <Circle className="w-4 h-4 text-banking-400 group-hover:text-banking-600 transition-colors flex-shrink-0 mt-1" />
+                  <Circle className="w-4 h-4 text-banking-500 group-hover:text-banking-400 transition-colors flex-shrink-0 mt-1" />
                 )}
               </div>
             </button>
@@ -143,11 +137,11 @@ export function ProcessGuide({
       </div>
 
       {/* Footer */}
-      <div className="px-5 py-3 bg-gray-50 border-t border-gray-200">
-        <p className="text-xs text-gray-500 text-center">
+      <div className="px-5 py-3 bg-zinc-900 border-t border-zinc-800">
+        <p className="text-xs text-zinc-500 text-center">
           {completedCount === processGuide.steps.length
-            ? '✅ All steps completed!'
-            : `👆 Click on the current step when completed`
+            ? 'All steps completed!'
+            : 'Click on the current step when completed'
           }
         </p>
       </div>

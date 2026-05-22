@@ -2,22 +2,33 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom scrollbar styles */
+/* ═══════════════════════════════════════════════
+   VaaNI Dark Theme — Zinc palette, Linear/Cursor vibe
+   ═══════════════════════════════════════════════ */
+
+@layer base {
+  body {
+    @apply bg-zinc-950 text-zinc-100 antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+}
+
+/* Custom scrollbar — dark theme */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-gray-100;
+  @apply bg-zinc-900;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-gray-300 rounded-full;
+  @apply bg-zinc-700 rounded-full;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-400;
+  @apply bg-zinc-600;
 }
 
 /* Animations */
@@ -41,15 +52,12 @@
   .no-print {
     display: none !important;
   }
-
   body {
     @apply bg-white text-black;
   }
-
   .print-break-before {
     page-break-before: always;
   }
-
   .print-break-after {
     page-break-after: always;
   }
@@ -61,7 +69,7 @@ a:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
-  @apply outline-none ring-2 ring-banking-500 ring-offset-2;
+  @apply outline-none ring-2 ring-banking-500 ring-offset-2 ring-offset-zinc-950;
 }
 
 /* Smooth transitions */
@@ -123,4 +131,63 @@ select:focus-visible {
 /* Custom utilities */
 .text-balance {
   text-wrap: balance;
+}
+
+/* ─── Dark card component ─── */
+@layer components {
+  .card {
+    @apply bg-zinc-900 border border-zinc-800 rounded-xl;
+  }
+  .card-hover {
+    @apply card hover:border-zinc-700 hover:bg-zinc-900/80;
+  }
+  .card-elevated {
+    @apply bg-zinc-900/80 border border-zinc-800 rounded-xl shadow-xl shadow-black/20;
+  }
+
+  /* Button variants */
+  .btn-primary {
+    @apply bg-banking-600 hover:bg-banking-500 text-white font-medium px-4 py-2 rounded-lg
+           transition-all duration-150 active:scale-[0.98];
+  }
+  .btn-secondary {
+    @apply bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium px-4 py-2 rounded-lg
+           border border-zinc-700 transition-all duration-150 active:scale-[0.98];
+  }
+  .btn-ghost {
+    @apply text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 px-3 py-2 rounded-lg
+           transition-all duration-150;
+  }
+  .btn-danger {
+    @apply bg-red-600/20 hover:bg-red-600/30 text-red-400 hover:text-red-300
+           font-medium px-4 py-2 rounded-lg border border-red-800/50
+           transition-all duration-150 active:scale-[0.98];
+  }
+
+  /* Input styles */
+  .input {
+    @apply bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2.5
+           text-zinc-100 placeholder-zinc-500
+           focus:outline-none focus:ring-2 focus:ring-banking-500/50 focus:border-banking-500;
+  }
+
+  /* Badge */
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  .badge-success {
+    @apply badge bg-emerald-500/15 text-emerald-400 border border-emerald-500/20;
+  }
+  .badge-warning {
+    @apply badge bg-amber-500/15 text-amber-400 border border-amber-500/20;
+  }
+  .badge-error {
+    @apply badge bg-red-500/15 text-red-400 border border-red-500/20;
+  }
+  .badge-info {
+    @apply badge bg-banking-500/15 text-banking-400 border border-banking-500/20;
+  }
+  .badge-neutral {
+    @apply badge bg-zinc-500/15 text-zinc-400 border border-zinc-500/20;
+  }
 }

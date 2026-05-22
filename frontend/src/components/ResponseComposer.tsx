@@ -1,5 +1,5 @@
 /**
- * ResponseComposer Component
+ * ResponseComposer Component — Dark Theme
  *
  * Text input area for staff responses:
  * - Staff can type free-form responses
@@ -30,7 +30,6 @@ export function ResponseComposer({
   const [isSuggestion, setIsSuggestion] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-populate from suggestion
   useEffect(() => {
     if (prefillType) {
       setText(prefillType);
@@ -39,7 +38,6 @@ export function ResponseComposer({
     }
   }, [prefillType]);
 
-  // Auto-resize textarea
   useEffect(() => {
     const textarea = textareaRef.current;
     if (textarea) {
@@ -72,19 +70,19 @@ export function ResponseComposer({
   const maxChars = 1000;
 
   return (
-    <div className={`bg-white border-t border-gray-200 ${className}`}>
+    <div className={`bg-zinc-950 border-t border-zinc-800 ${className}`}>
       <div className="p-4">
         {/* Suggestion Badge */}
         {isSuggestion && (
-          <div className="flex items-center justify-between mb-2 px-3 py-2 bg-banking-50 border border-banking-200 rounded-lg">
-            <span className="text-sm font-medium text-banking-700">
-              💡 AI suggestion loaded
+          <div className="flex items-center justify-between mb-2 px-3 py-2 bg-banking-950/50 border border-banking-800/50 rounded-lg">
+            <span className="text-sm font-medium text-banking-400">
+              AI suggestion loaded
             </span>
             <button
               onClick={clearSuggestion}
-              className="p-1 hover:bg-banking-100 rounded transition-colors"
+              className="p-1 hover:bg-banking-900/50 rounded transition-colors"
             >
-              <X className="w-4 h-4 text-banking-600" />
+              <X className="w-4 h-4 text-banking-500" />
             </button>
           </div>
         )}
@@ -99,12 +97,7 @@ export function ResponseComposer({
             placeholder={placeholder}
             disabled={disabled}
             rows={1}
-            className={`
-              w-full px-4 py-3 pr-24 border-2 border-gray-200 rounded-lg
-              focus:outline-none focus:ring-2 focus:ring-banking-500 focus:border-transparent
-              disabled:bg-gray-100 disabled:cursor-not-allowed resize-none
-              transition-shadow
-            `}
+            className="input w-full px-4 py-3 pr-24 resize-none"
             style={{ minHeight: '48px', maxHeight: '150px' }}
           />
 
@@ -112,10 +105,9 @@ export function ResponseComposer({
           <div className="absolute right-2 bottom-2 flex items-center gap-2">
             {/* Character Count */}
             <span
-              className={`
-                text-xs font-medium mr-1
-                ${charCount > maxChars * 0.9 ? 'text-red-500' : 'text-gray-400'}
-              `}
+              className={`text-xs font-medium mr-1 ${
+                charCount > maxChars * 0.9 ? 'text-red-400' : 'text-zinc-600'
+              }`}
             >
               {charCount}/{maxChars}
             </span>
@@ -124,7 +116,7 @@ export function ResponseComposer({
             <button
               type="button"
               disabled={disabled}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-2 text-zinc-600 hover:text-zinc-400 hover:bg-zinc-800 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="Attach file (coming soon)"
             >
               <Paperclip className="w-5 h-5" />
@@ -138,8 +130,8 @@ export function ResponseComposer({
               className={`
                 p-2 rounded-lg flex items-center gap-1.5 font-medium transition-all
                 ${text.trim() && !disabled
-                  ? 'bg-banking-600 text-white hover:bg-banking-700'
-                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  ? 'bg-banking-600 text-white hover:bg-banking-500'
+                  : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
                 }
               `}
             >
@@ -150,10 +142,10 @@ export function ResponseComposer({
         </div>
 
         {/* Helper Text */}
-        <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
+        <div className="mt-2 flex items-center justify-between text-xs text-zinc-600">
           <span>
-            Press <kbd className="px-1.5 py-0.5 bg-gray-100 rounded font-mono">Enter</kbd> to send,
-            <kbd className="px-1.5 py-0.5 bg-gray-100 rounded font-mono ml-1">Shift + Enter</kbd> for new line
+            Press <kbd className="px-1.5 py-0.5 bg-zinc-900 border border-zinc-700 rounded font-mono text-[10px]">Enter</kbd> to send,
+            <kbd className="px-1.5 py-0.5 bg-zinc-900 border border-zinc-700 rounded font-mono text-[10px] ml-1">Shift + Enter</kbd> for new line
           </span>
         </div>
       </div>

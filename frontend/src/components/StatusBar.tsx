@@ -36,19 +36,19 @@ export function StatusBar({
   className = '',
 }: StatusBarProps) {
   const getLatencyColor = (ms: number): string => {
-    if (ms < 100) return 'text-green-600';
-    if (ms < 300) return 'text-yellow-600';
-    return 'text-red-600';
+    if (ms < 100) return 'text-emerald-400';
+    if (ms < 300) return 'text-amber-400';
+    return 'text-red-400';
   };
 
   const getConfidenceColor = (confidence: number): string => {
-    if (confidence >= 0.9) return 'text-green-600';
-    if (confidence >= 0.7) return 'text-yellow-600';
-    return 'text-red-600';
+    if (confidence >= 0.9) return 'text-emerald-400';
+    if (confidence >= 0.7) return 'text-amber-400';
+    return 'text-red-400';
   };
 
   return (
-    <div className={`bg-gray-900 text-gray-300 ${className}`}>
+    <div className={`bg-zinc-950 border-t border-zinc-800 text-zinc-400 ${className}`}>
       <div className="px-6 py-2">
         <div className="flex items-center justify-between text-sm">
           {/* Left: Connection Status */}
@@ -85,9 +85,9 @@ export function StatusBar({
             <div className="flex items-center gap-6">
               {/* Language */}
               <div className="flex items-center gap-2">
-                <Globe className="w-4 h-4 text-blue-400" />
+                <Globe className="w-4 h-4 text-banking-400" />
                 <span>Language: </span>
-                <span className="font-medium text-blue-300">{currentLanguage}</span>
+                <span className="font-medium text-banking-300">{currentLanguage}</span>
               </div>
 
               {/* Confidence */}

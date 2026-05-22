@@ -290,7 +290,7 @@ export function SessionPage({ sessionId, onSessionEnd, onShowMetrics, demoPreloa
   const handleNewSession = () => { window.location.reload(); };
 
   return (
-    <div className="h-screen flex flex-col bg-gray-100">
+    <div className="h-screen flex flex-col bg-zinc-950">
       <TopBar
         selectedLanguage={selectedLanguage}
         onLanguageChange={setSelectedLanguage}
@@ -310,7 +310,7 @@ export function SessionPage({ sessionId, onSessionEnd, onShowMetrics, demoPreloa
       )}
 
       <div className="flex-1 flex overflow-hidden">
-        <div className="w-3/5 flex flex-col border-r border-gray-200">
+        <div className="w-3/5 flex flex-col border-r border-zinc-800">
           <div className="flex-1 overflow-hidden">
             <TranscriptPanel transcript={transcript} isPlaying={waveformData.length > 0} />
           </div>
@@ -357,7 +357,7 @@ export function SessionPage({ sessionId, onSessionEnd, onShowMetrics, demoPreloa
         <div className="fixed bottom-16 right-6 z-10">
           <button
             onClick={handleEndSession}
-            className="flex items-center gap-2 px-5 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium shadow-lg transition-all"
+            className="flex items-center gap-2 px-5 py-3 bg-red-600/80 hover:bg-red-500 text-white rounded-xl font-medium shadow-lg shadow-red-600/20 backdrop-blur transition-all"
           >
             End Session
           </button>
@@ -365,7 +365,7 @@ export function SessionPage({ sessionId, onSessionEnd, onShowMetrics, demoPreloa
       )}
 
       {recordingState.isRecording && !recordingState.isPaused && (
-        <div className="fixed bottom-16 left-6 bg-gray-900 bg-opacity-90 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-3">
+        <div className="fixed bottom-16 left-6 bg-zinc-900/90 text-zinc-100 px-4 py-2 rounded-lg shadow-xl shadow-black/30 backdrop-blur flex items-center gap-3 border border-zinc-800">
           <div className="flex gap-1 items-end h-6">
             {[1, 2, 3, 4, 5].map((i) => (
               <div

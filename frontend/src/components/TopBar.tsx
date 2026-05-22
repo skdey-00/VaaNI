@@ -1,5 +1,5 @@
 /**
- * TopBar Component
+ * TopBar Component — Dark Theme
  *
  * Top navigation bar containing:
  * - Language selector with Indian language names and script previews
@@ -66,35 +66,35 @@ export function TopBar({
   };
 
   return (
-    <div className={`bg-white border-b border-gray-200 shadow-sm ${className}`}>
+    <div className={`bg-zinc-950 border-b border-zinc-800 ${className}`}>
       <div className="px-6 py-3">
         <div className="flex items-center justify-between">
           {/* Left: Language Selector & Timer */}
           <div className="flex items-center gap-4">
             {/* Language Selector */}
             <div className="flex items-center gap-2">
-              <label htmlFor="language-select" className="text-sm font-medium text-gray-600">
-                Language:
+              <label htmlFor="language-select" className="text-sm font-medium text-zinc-400">
+                Language
               </label>
               <select
                 id="language-select"
                 value={selectedLanguage}
                 onChange={(e) => onLanguageChange(e.target.value)}
                 disabled={isRecording}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium bg-white disabled:bg-gray-100 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-banking-500 focus:border-transparent transition-shadow min-w-[180px]"
+                className="input text-sm font-medium min-w-[180px] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {LANGUAGES.map((lang) => (
                   <option key={lang.code} value={lang.code}>
-                    {lang.flag} {lang.nativeName} ({lang.name})
+                    {lang.nativeName} ({lang.name})
                   </option>
                 ))}
               </select>
             </div>
 
             {/* Session Timer */}
-            <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg">
-              <Clock className="w-4 h-4 text-gray-500" />
-              <span className="text-sm font-mono font-medium text-gray-700">
+            <div className="flex items-center gap-2 px-3 py-2 bg-zinc-900 rounded-lg border border-zinc-800">
+              <Clock className="w-4 h-4 text-zinc-500" />
+              <span className="text-sm font-mono font-medium text-zinc-300">
                 {formatTime(duration)}
               </span>
             </div>
@@ -102,12 +102,12 @@ export function TopBar({
             {/* Connection Status */}
             <div className="flex items-center gap-2">
               {isConnected ? (
-                <div className="flex items-center gap-1.5 text-green-600">
+                <div className="flex items-center gap-1.5 text-emerald-400">
                   <Wifi className="w-4 h-4" />
                   <span className="text-xs font-medium">{MOCK_MODE ? 'Demo Mode' : 'Connected'}</span>
                 </div>
               ) : (
-                <div className="flex items-center gap-1.5 text-red-600">
+                <div className="flex items-center gap-1.5 text-red-400">
                   <WifiOff className="w-4 h-4" />
                   <span className="text-xs font-medium">Disconnected</span>
                 </div>
@@ -122,7 +122,7 @@ export function TopBar({
               <button
                 onClick={onLoadDemo}
                 disabled={isProcessing}
-                className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white rounded-lg font-medium transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-4 py-2.5 bg-banking-600 hover:bg-banking-500 text-white rounded-lg font-medium transition-all shadow-lg shadow-banking-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Zap className="w-4 h-4" />
                 Load Demo
@@ -133,9 +133,9 @@ export function TopBar({
             {onShowMetrics && (
               <button
                 onClick={onShowMetrics}
-                className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white rounded-lg font-medium transition-all shadow-sm"
+                className="btn-secondary"
               >
-                <BarChart3 className="w-4 h-4" />
+                <BarChart3 className="w-4 h-4 mr-2" />
                 Metrics
               </button>
             )}
@@ -148,9 +148,9 @@ export function TopBar({
                 relative flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-white transition-all
                 ${isRecording
                   ? isPaused
-                    ? 'bg-yellow-500 hover:bg-yellow-600'
-                    : 'bg-red-500 hover:bg-red-600 animate-pulse-fast'
-                  : 'bg-banking-600 hover:bg-banking-700'
+                    ? 'bg-amber-600 hover:bg-amber-500'
+                    : 'bg-red-600 hover:bg-red-500 animate-pulse-fast'
+                  : 'bg-banking-600 hover:bg-banking-500'
                 }
                 disabled:opacity-50 disabled:cursor-not-allowed
               `}
@@ -186,9 +186,9 @@ export function TopBar({
             {/* New Session Button */}
             <button
               onClick={onNewSession}
-              className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors"
+              className="btn-ghost"
             >
-              <RotateCcw className="w-4 h-4" />
+              <RotateCcw className="w-4 h-4 mr-2" />
               New Session
             </button>
           </div>

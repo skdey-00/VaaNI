@@ -7,6 +7,7 @@
  */
 
 import { CheckCircle, Loader2, Circle, Zap, ArrowRight } from 'lucide-react';
+import React from 'react';
 
 export interface PipelineStepData {
   id: string;
